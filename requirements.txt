@@ -6,3 +6,4 @@ sentence-transformers
 faiss-cpu
 numpy
 nltk
+black
