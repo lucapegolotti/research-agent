@@ -1,3 +1,4 @@
 .research-agent-env
+.env
 research_papers
 vector_store
