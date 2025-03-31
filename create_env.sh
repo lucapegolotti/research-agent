@@ -5,6 +5,7 @@ VENV_NAME=".research-agent-env"
 
 # Python packages to include in requirements.txt
 PACKAGES=(
+    "arxiv"                  # For downloading papers from arXiv
     "anthropic"              # For Claude API
     "python-dotenv"          # For managing API keys
     "requests"               # For downloading papers

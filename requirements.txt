@@ -7,3 +7,4 @@ faiss-cpu
 numpy
 nltk
 black
+arxiv
