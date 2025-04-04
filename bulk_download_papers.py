@@ -1,4 +1,4 @@
-# download_papers.py
+# bulk_download_papers.py
 import json
 import time
 import arxiv # Make sure this is installed
