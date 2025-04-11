@@ -1,10 +1,12 @@
 # Conversational Research Agent with Dynamic Knowledge Base
 
+![Example Usage](./img/example_usage.gif)
+
 ## Overview
 
 This project implements a conversational AI research assistant that can interact with a local collection of research papers. Users can ask questions about the papers, and the agent uses a Retrieval Augmented Generation (RAG) approach with an Anthropic Claude model to provide answers grounded in the document content.
 
-A key feature is the agent's ability to dynamically expand its knowledge base: users can instruct the agent to search for new papers on arXiv, download them, process them, and integrate them into its vector store for immediate querying. The agent also maintains conversational context, allowing for follow-up questions, recalling parts of the conversation, and a more natural interaction flow.
+A key feature is the agent's ability to dynamically expand its knowledge base: users can instruct the agent to search for new papers on arXiv, download them, process them, and integrate them into its vector store for immediate querying. The agent also maintains conversational context, allowing for follow-up questions, recalling parts of the conversation, and a more natural interaction flow. It can also fetch and suggest recent papers based on user-specified areas of interest.
 
 ## Features
 
@@ -13,11 +15,13 @@ A key feature is the agent's ability to dynamically expand its knowledge base: u
 * **Meta-Conversational Awareness:** Can answer questions about the ongoing conversation itself (e.g., "What was my last question?").
 * **Retrieval Augmented Generation (RAG):** Answers questions based on content retrieved from a local collection of PDF research papers.
 * **Dynamic Knowledge Base Expansion:**
-    * Searches for papers on arXiv based on user queries (titles, keywords, arXiv IDs).
+    * Searches for papers on arXiv based on user queries (titles, keywords, arXiv IDs) using the `/add_paper` command.
     * Allows user selection if multiple papers are found.
     * Downloads selected PDFs into a local directory.
     * Processes new PDFs (text extraction, chunking, embedding).
     * Updates the vector store (FAISS index and text chunk metadata) in real-time.
+* **Stay Updated:** Fetches and lists recent papers from arXiv based on a research area using the `/stay_updated` command, allowing users to select papers for download and integration.
+* **List Indexed Papers:** Users can view a list of all papers currently loaded into the knowledge base with the `/list_papers` command.
 * **Persistent Storage:** Downloaded papers, the vector store, and chat history are saved locally.
 * **Modular Design:** Code is organized into separate modules for paper management, vector store operations, and the main agent logic.
 
@@ -25,13 +29,15 @@ A key feature is the agent's ability to dynamically expand its knowledge base: u
 
 * **Python 3.x**
 * **Anthropic API:** For Large Language Model (Claude) capabilities (e.g., `claude-3-5-haiku-20241022`).
-* **Sentence-Transformers:** For generating text embeddings.
+* **Sentence-Transformers:** For generating text embeddings (e.g., `all-MiniLM-L6-v2`).
 * **FAISS (cpu):** For efficient similarity search in the vector store.
-* **PyPDF:** For extracting text from PDF documents.
+* **pypdf:** For extracting text from PDF documents.
 * **arXiv:** Python library for searching and retrieving metadata from arXiv.
 * **NLTK:** For sentence tokenization.
-* **dotenv:** For managing API keys.
+* **python-dotenv:** For managing API keys.
 * **NumPy:** For numerical operations.
+* **Requests:** For downloading papers.
+* **(Optional for development) Black:** For code formatting.
 
 ## Setup and Installation
 
@@ -41,14 +47,15 @@ A key feature is the agent's ability to dynamically expand its knowledge base: u
     git clone <your-repository-url>
     cd <repository-name>
     ```
-    Otherwise, ensure all the Python files (`research_agent.py`, `paper_manager.py`, etc.) and `initial_papers.json` are in your main project directory.
+    Otherwise, ensure all the Python files (`research_agent.py`, `paper_manager.py`, `vector_store_manager.py`, `bulk_download_papers.py`), `create_env.sh`, and `initial_papers.json` are in your main project directory.
 
 2.  **Set up Python Virtual Environment:**
     Make the setup script executable and run it:
     ```bash
-    chmod +x setup_research_env.sh
-    ./setup_research_env.sh
+    chmod +x create_env.sh
+    ./create_env.sh
     ```
+    This will create a virtual environment named `.research-agent-env`.
 
 3.  **Activate the Virtual Environment:**
     ```bash
@@ -62,7 +69,7 @@ A key feature is the agent's ability to dynamically expand its knowledge base: u
     ```
 
 5.  **Set up Environment Variables:**
-    Create a `.env` file in the project root (you can copy `.env.example` if provided, or create it manually):
+    Create a `.env` file in the project root:
     ```
     ANTHROPIC_API_KEY="your_anthropic_api_key_here"
     ```
@@ -110,34 +117,31 @@ Once the agent is running, you can interact with it via the command line:
     Example: `What was my last question?`
     Example: `What did you say about RAG earlier?`
 
-* **Adding New Papers:** Use the `/add_paper` command followed by a query (paper title, keywords, or arXiv ID).
-    Example: `/add_paper Retentive Network A Successor to Transformer`
-    Example: `/add_paper 2305.10601`
-    The agent will search arXiv, may prompt you to select from multiple results, then download, process, and add the paper to its knowledge base.
-
-* **Clearing Conversation History:** To reset the current chat context (both in memory and the persistent `chat_history.json` file):
-    ```
-    /clear_history
-    ```
-
-* **Exiting the Agent:** This will also save the current chat history.
-    ```
-    /quit
-    ```
-    or
-    ```
-    /exit
-    ```
+* **Available Commands:**
+    * `/help`: Display the help message.
+    * `/add_paper <title/keywords/arXiv ID>`: Search for a specific paper on arXiv, then optionally download and add it.
+        Example: `/add_paper Retentive Network A Successor to Transformer`
+        Example: `/add_paper 2305.10601`
+    * `/stay_updated <area/keywords>`: Fetch a list of recent papers (last ~90 days) from arXiv for a research area. You can then select papers to download and add.
+        Example: `/stay_updated large language models`
+    * `/list_papers`: List all papers currently loaded in the knowledge base.
+    * `/clear_history`: Clear the chat conversation history (memory & persistent file).
+    * `/quit` or `/exit`: Exit the Research Agent Assistant (saves chat history).
 
 ## Configuration Notes
 
-* **LLM Model:** The Anthropic model used for Q&A and summarization can be changed in `research_agent.py` (e.g., `LLM_MODEL_NAME = "claude-3-5-haiku-20241022"`).
-* **Embedding Model:** The sentence transformer model is set in `vector_store_manager.py` and `research_agent.py` (`EMBEDDING_MODEL_NAME`). Ensure it's consistent.
-* **Top-K Retrieval:** The number of chunks retrieved for RAG context can be adjusted via `TOP_K_RESULTS` in `research_agent.py`.
+* **LLM Model:** The Anthropic model used for Q&A (`LLM_MODEL_NAME`) and summarization (`SUMMARIZER_MODEL_NAME`) can be changed in `research_agent.py` (default: `claude-3-5-haiku-20241022`).
+* **Embedding Model:** The sentence transformer model is set in `research_agent.py` and `vector_store_manager.py` (`EMBEDDING_MODEL_NAME`, default: `all-MiniLM-L6-v2`). Ensure it's consistent.
+* **Top-K Retrieval:** The number of chunks retrieved for RAG context can be adjusted via `TOP_K_RESULTS` in `research_agent.py` (default: 5).
 * **Chat History Summarization:**
-    * `SUMMARIZATION_TRIGGER_COUNT`: Number of total messages before summarization is triggered.
-    * `MESSAGES_TO_KEEP_RAW_AFTER_SUMMARY`: Number of latest raw messages preserved after a summarization event.
-    * These are set in `research_agent.py`.
+    * `SUMMARIZATION_TRIGGER_COUNT`: Number of total messages before summarization is triggered (default: 12).
+    * `MESSAGES_TO_KEEP_RAW_AFTER_SUMMARY`: Number of latest raw messages preserved after a summarization event (default: 4).
+    * `MAX_SUMMARY_TOKENS`: Max tokens for the generated summary (default: 350).
+* **Paper Download Directory:** Papers are downloaded to the `research_papers` directory, as defined by `PAPERS_DIR` in `paper_manager.py`, `bulk_download_papers.py`, and `vector_store_manager.py`.
+* **Vector Store Directory:** The FAISS index and chunk data are stored in the `vector_store` directory, as defined by `VECTOR_STORE_DIR` in `research_agent.py` and `vector_store_manager.py`.
+* **Stay Updated Feature:**
+    * `NUM_RECENT_PAPERS_TO_DISPLAY`: Number of recent papers to show from the `/stay_updated` command (default: 7).
+    * `DAYS_RECENT_THRESHOLD`: How many days back to consider papers as "recent" (default: 90).
 
 ## Notes & Troubleshooting
 

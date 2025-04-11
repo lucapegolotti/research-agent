@@ -1,5 +1,6 @@
 __pycache__
 .research-agent-env
+.DS_Store
 .env
 chat_history.json
 research_papers
